@@ -1,0 +1,186 @@
+#include <algorithm>
+#include <chrono>
+#include <iostream>
+#include <random>
+
+#include "chess_board.h"
+#include "chess_pieces.h"
+#include "chess_player.h"
+
+using std::cin;
+using std::cout;
+using std::endl;
+using std::shuffle;
+using std::vector;
+
+const char* Player::name() const {
+  return team_name(team);
+}
+
+
+RandomPlayer::RandomPlayer(Team team) : Player(team) {
+  // Initialize the pseudo-random number generator based on the current time,
+  // so it chooses different numbers when you run the code at different times.
+  random_number_generator.seed(
+    std::chrono::system_clock::now().time_since_epoch().count());
+}
+
+Move RandomPlayer::get_move(const Board& board, const vector<Move>& moves) const {
+  return moves[random_number_generator() % moves.size()];
+}
+
+HumanPlayer::HumanPlayer(Team team) : Player(team) {}
+
+Move HumanPlayer::get_move(const Board& board, const vector<Move>& moves) const {
+  Move move;
+  while (true) {
+    cout << "What's your move?: ";
+    cin >> move;
+    cout << endl;
+    if (find(moves.begin(), moves.end(), move) != moves.end()) {
+      break;
+    }
+    cout << move << " is not a valid move! Please choose one of the following moves: \n";
+    for (Move valid_move : moves) {
+      cout << valid_move << ' ';
+    }
+    cout << endl;
+  }
+  return move;
+}
+
+CapturePlayer::CapturePlayer(Team team) : Player(team) {
+  // Initialize the pseudo-random number generator based on the current time,
+  // so it chooses different numbers when you run the code at different times.
+  random_number_generator.seed(
+    std::chrono::system_clock::now().time_since_epoch().count());
+}
+
+Move CapturePlayer::get_move(const Board& board, const vector<Move>& moves) const {
+  vector<Move> shuffled_moves = moves;
+  shuffle(shuffled_moves.begin(), shuffled_moves.end(), random_number_generator);
+  for (Move move : shuffled_moves) {
+    if (board[move.from].is_opposite_team(board[move.to])) {
+      return move;
+    }
+  }
+  return shuffled_moves[0];
+}
+
+CheckMateCapturePlayer::CheckMateCapturePlayer(Team team) : Player(team) {
+  // Initialize the pseudo-random number generator based on the current time,
+  // so it chooses different numbers when you run the code at different times.
+  random_number_generator.seed(
+    std::chrono::system_clock::now().time_since_epoch().count());
+}
+
+Move CheckMateCapturePlayer::get_move(const Board& board, const vector<Move>& moves) const {
+  vector<Move> shuffled_moves = moves;
+  shuffle(shuffled_moves.begin(), shuffled_moves.end(), random_number_generator);
+  for (Move move : shuffled_moves) {
+    if (board[move.from].is_opposite_team(board[move.to]) && (board[move.to] == WHITE_KING || board[move.to] == BLACK_KING)) {
+      return move;
+    }
+  }
+  for (Move move : shuffled_moves) {
+    if (board[move.from].is_opposite_team(board[move.to])) {
+      return move;
+    }
+  }
+  return shuffled_moves[0];
+}
+
+AIPlayer::AIPlayer(Team team) : Player(team) {
+  random_number_generator.seed(
+    std::chrono::system_clock::now().time_since_epoch().count());
+}
+
+Move AIPlayer::get_move(const Board& board, const vector<Move>& moves) const {
+   //opening move
+   Move black_wanted_move(Cell(3,6),Cell(3,4));
+   Move white_wanted_move(Cell(3,1),Cell(3,3));
+   if(team == BLACK && move == black_wanted_move && board[move.from] == BLACK_PAWN {
+      return move;
+      //returning move from black with FEN- rnbqkbnr/ppp1pppp/8/3p4/3P4/8/PPP1PPPP/RNBQKBNR w KQkq - 0 1
+      //x3,y6 | x3,y4 |
+      //FEN- rnbqkbnr/ppp1pppp/8/3p4/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1
+   }  else if (team == WHITE && move == white_wanted_move && board[move.from] == WHITE_PAWN) {
+      //white always goes first.
+      //x3,y1 | x3,y3 |
+      //FEN- rnbqkbnr/pppppppp/8/8/3P4/8/PPP1PPPP/RNBQKBNR w KQkq - 0 1
+      return move;
+   }
+   //first move completed or not avaliable~not sure if the current conditionals are enough... D:
+   //list of ELIF with descending value of pieces?
+   //NEED MIN/MAX WITH 2 DEPTH
+
+
+}
+  
+//how do I check all of the different moves possible    
+//order moves on assigned piece value--- what to do when no capture avaliable? 
+
+//should search possible outcomes, some sort of minmax of the board- scoring the board is something i've heard of...
+//recursive search tree?
+//disregarding useless branches for optimization
+//
+
+
+
+
+#ifndef _CHESS_PLAYER_H_
+#define _CHESS_PLAYER_H_
+
+#include <random>
+#include <vector>
+
+#include "chess_board.h"
+
+using std::vector;
+
+class Player {
+public:
+  const Team team;
+
+  Player(Team team) : team(team) {}
+
+  virtual Move get_move(const Board& board, const vector<Move>& moves) const = 0;
+  virtual const char* name() const;
+};
+
+class RandomPlayer : public Player {
+  mutable std::default_random_engine random_number_generator;
+public:
+  RandomPlayer(Team team);
+
+  Move get_move(const Board& board, const vector<Move>& moves) const override;
+};
+
+class HumanPlayer : public Player {
+public:
+  HumanPlayer(Team team);
+  Move get_move(const Board& board, const vector<Move>& moves) const override;
+};
+
+// CapturePlayer plays a random move that captures an opponents piece.
+// If there is no such move, then it plays a random move.
+class CapturePlayer : public Player {
+  mutable std::default_random_engine random_number_generator;
+public:
+  CapturePlayer(Team team);
+  Move get_move(const Board& board, const vector<Move>& moves) const override;
+};
+
+class CheckMateCapturePlayer : public Player {
+  mutable std::default_random_engine random_number_generator;
+public:
+  CheckMateCapturePlayer(Team team);
+  Move get_move(const Board& board, const vector<Move>& moves) const override;
+};
+class AIPlayer : public Player {
+  mutable std::default_random_engine random_number_generator;
+public:
+  AIPlayer(Team team);
+  Move get_move(const Board& board, const vector<Move>& moves) const override;
+};
+#endif  // _CHESS_PLAYER_H_
